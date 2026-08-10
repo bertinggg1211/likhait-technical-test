@@ -2,11 +2,13 @@
  * Form component for adding/editing expenses
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { ExpenseFormData } from "../types";
-import { EXPENSE_CATEGORIES } from "../constants/categories";
-import { TextField, SelectBox, Button } from "../vibes";
+import { TextField, SelectBox, Button, Modal } from "../vibes";
 import { useExpenseForm } from "../hooks/useExpenseForm";
+import { useCategories } from "../hooks/useCategories";
+import { CategoryForm } from "./CategoryForm";
+import { formatDate } from "../utils/expenseUtils";
 
 interface ExpenseFormProps {
   initialData?: Partial<ExpenseFormData>;
@@ -27,10 +29,19 @@ export function ExpenseForm({
       onSubmit,
     });
 
+  const { categories, reloadCategories } = useCategories();
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
   const formStyle: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
     gap: "1rem",
+  };
+
+  const categoryRowStyle: React.CSSProperties = {
+    display: "flex",
+    gap: "0.5rem",
+    alignItems: "flex-end",
   };
 
   const buttonGroupStyle: React.CSSProperties = {
@@ -39,10 +50,16 @@ export function ExpenseForm({
     marginTop: "0.5rem",
   };
 
-  const categoryOptions = EXPENSE_CATEGORIES.map((category) => ({
-    value: category,
-    label: category,
+  const categoryOptions = categories.map((category) => ({
+    value: category.name,
+    label: category.name,
   }));
+
+  const handleCategoryCreated = async (category: { id: number; name: string }) => {
+    await reloadCategories();
+    handleChange("category", category.name);
+    setIsCategoryModalOpen(false);
+  };
 
   return (
     <form onSubmit={handleSubmit} style={formStyle}>
@@ -69,15 +86,35 @@ export function ExpenseForm({
         required
       />
 
-      <SelectBox
-        label="Category"
-        options={categoryOptions}
-        value={formData.category}
-        onChange={(e) => handleChange("category", e.target.value)}
-        error={errors.category}
-        fullWidth
-        required
-      />
+      <div style={categoryRowStyle}>
+        <SelectBox
+          label="Category"
+          options={categoryOptions}
+          value={formData.category}
+          onChange={(e) => handleChange("category", e.target.value)}
+          error={errors.category}
+          fullWidth
+          required
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setIsCategoryModalOpen(true)}
+        >
+          Add Category
+        </Button>
+      </div>
+
+      <Modal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        title="Add New Category"
+      >
+        <CategoryForm
+          onCreated={handleCategoryCreated}
+          onCancel={() => setIsCategoryModalOpen(false)}
+        />
+      </Modal>
 
       <TextField
         label="Date"
@@ -87,6 +124,7 @@ export function ExpenseForm({
         error={errors.date}
         fullWidth
         required
+        max={formatDate(new Date())}
       />
 
       <div style={buttonGroupStyle}>
